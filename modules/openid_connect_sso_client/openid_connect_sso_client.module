@@ -11,7 +11,7 @@
 function openid_connect_sso_client_form_openid_connect_sso_settings_form_alter(&$form, &$form_state) {
   $client_options = array();
   /** @var \Drupal\openid_connect\Plugin\OpenIDConnectClientManager $pluginManager */
-  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client.processor');
+  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client');
 
   $clients = $pluginManager->getDefinitions();
   foreach ($clients as $plugin_id => $info) {
@@ -19,7 +19,7 @@ function openid_connect_sso_client_form_openid_connect_sso_settings_form_alter(&
   }
 
   $url = \Drupal\Core\Url::fromUri('internal:/admin/config/services/openid-connect');
-  $sso_client_id = \Drupal::config('openid_connect_sso_client')->get('client_id');
+  $sso_client_id = \Drupal::config('openid_connect_sso_client.settings')->get('client_id');
 
   $form['openid_connect_sso_client_id'] = array(
     '#type' => 'select',
@@ -30,6 +30,20 @@ function openid_connect_sso_client_form_openid_connect_sso_settings_form_alter(&
     '#options' => $client_options,
     '#default_value' => $sso_client_id,
   );
+
+  $form['#submit'][] = 'openid_connect_sso_client_form_submit';
+}
+
+/**
+ * Submit handler for saving client id as above form alter.
+ */
+function openid_connect_sso_client_form_submit(array $form, \Drupal\Core\Form\FormStateInterface $form_state){
+  $client_id = $form_state->getValue('openid_connect_sso_client_id');
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('openid_connect_sso_client.settings');
+  $config->set('client_id', $client_id);
+
+  $config->save(TRUE);
 }
 
 /**
@@ -40,12 +54,18 @@ function openid_connect_sso_client_form_openid_connect_sso_settings_form_alter(&
  */
 function _openid_connect_sso_get_enabled_clients_configuration() {
   /** @var \Drupal\openid_connect\Plugin\OpenIDConnectClientManager $pluginManager */
-  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client.processor');
+  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client');
 
   /** @var \Drupal\Core\Config\ConfigFactoryInterface $config */
   $config = \Drupal::configFactory();
 
   $clients_enabled = array();
+
+  $clients = \Drupal::entityTypeManager()->getStorage('openid_connect_client')->loadByProperties(['status' => TRUE]);
+
+  foreach ($clients as $client_plugin) {
+    $clients_enabled[$client_plugin->get('plugin')] = $client_plugin->get('settings');
+  }
   foreach ($pluginManager->getDefinitions() as $client_plugin) {
     $enabled = $config->get('openid_connect.settings.' . $client_plugin['id'])->get('enabled');
     if ($enabled) {
@@ -75,7 +95,8 @@ function _openid_connect_sso_client_get_client($client_id = NULL) {
   }
 
   /** @var \Drupal\openid_connect\Plugin\OpenIDConnectClientManager $pluginManager */
-  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client.processor');
+  $pluginManager = \Drupal::service('plugin.manager.openid_connect_client');
+
 
   return $pluginManager->createInstance(
     $client_id,
@@ -88,8 +109,8 @@ function _openid_connect_sso_client_get_client($client_id = NULL) {
  *
  * @return string
  */
-function _openid_connect_sso_client_get_scopes() {
+function _openid_connect_sso_client_get_scopes($client) {
   /** @var \Drupal\openid_connect\Claims $claims */
   $claims = \Drupal::service('openid_connect.claims');
-  return $claims->getScopes();
+  return $claims->getScopes($client);
 }
