@@ -68,10 +68,10 @@ class RouteSubscriber extends RouteSubscriberBase {
     }
 
     if ($new_login || $network_login) {
-      openid_connect_save_destination();
+      \Drupal::service('openid_connect.session')->saveDestination();
 
       $client = _openid_connect_sso_client_get_client();
-      $scopes = _openid_connect_sso_client_get_scopes();
+      $scopes = _openid_connect_sso_client_get_scopes($client);
 
       $authorization_redirect_response = $client->authorize($scopes);
       $event->setResponse($authorization_redirect_response);
