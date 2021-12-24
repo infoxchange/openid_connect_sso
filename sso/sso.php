@@ -171,7 +171,7 @@ function sso_redirect_url($host, $https) {
     $args['destination'] = $_GET['destination'];
   }
 
-  return $host . '/?' . http_build_query($args);
+  return $host . '?' . http_build_query($args);
 }
 
 function sso_debug($message = NULL) {
